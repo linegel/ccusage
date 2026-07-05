@@ -202,6 +202,7 @@ fn command_snapshot(command: Option<Command>) -> Value {
         Some(Command::Kimi(args)) => agent_command_snapshot("kimi", args),
         Some(Command::Qwen(args)) => agent_command_snapshot("qwen", args),
         Some(Command::OpenClaw(args)) => agent_command_snapshot("openclaw", args),
+        Some(Command::Grok(args)) => agent_command_snapshot("grok", args),
     }
 }
 
@@ -358,7 +359,7 @@ fn root_help_lists_agent_namespaces_without_nested_commands() {
     let help = help_text();
     let agents = [
         "claude", "codex", "opencode", "amp", "droid", "codebuff", "hermes", "pi", "goose", "kilo",
-        "copilot", "gemini", "kimi", "qwen", "openclaw",
+        "copilot", "gemini", "kimi", "qwen", "openclaw", "grok",
     ];
 
     for agent in agents {
@@ -558,6 +559,10 @@ fn snapshots_representative_cli_parse_shapes() {
                 "session",
                 "--open-claw-path=/tmp/openclaw",
             ])),
+        }),
+        json!({
+            "case": "grok daily json",
+            "cli": cli_snapshot(parse(&["ccusage", "grok", "daily", "--json"])),
         }),
         json!({
             "case": "blocks active recent",
@@ -918,6 +923,28 @@ fn parses_gemini_session_options() {
     };
     assert_eq!(args.kind, AgentReportKind::Session);
     assert!(args.shared.json);
+}
+
+#[test]
+fn parses_grok_report_commands() {
+    let cli = parse(&["ccusage", "grok", "session", "--json"]);
+    let Some(Command::Grok(args)) = cli.command else {
+        panic!("expected grok command");
+    };
+    assert_eq!(args.kind, AgentReportKind::Session);
+    assert!(args.shared.json);
+
+    let cli = parse(&["ccusage", "grok", "daily"]);
+    let Some(Command::Grok(args)) = cli.command else {
+        panic!("expected grok command");
+    };
+    assert_eq!(args.kind, AgentReportKind::Daily);
+
+    let cli = parse(&["ccusage", "grok", "monthly"]);
+    let Some(Command::Grok(args)) = cli.command else {
+        panic!("expected grok command");
+    };
+    assert_eq!(args.kind, AgentReportKind::Monthly);
 }
 
 #[test]

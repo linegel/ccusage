@@ -263,6 +263,13 @@ fn parse_command(
             STANDARD_AGENT_REPORTS,
             Command::Qwen,
         ),
+        "grok" => parse_basic_agent_command(
+            parser,
+            shared,
+            "grok",
+            STANDARD_AGENT_REPORTS,
+            Command::Grok,
+        ),
         "openclaw" => parse_openclaw_command(parser, shared, config),
         _ => Err(format!("Unknown command '{command}'")),
     }
@@ -631,6 +638,7 @@ fn is_command(arg: &str) -> bool {
             | "gemini"
             | "kimi"
             | "qwen"
+            | "grok"
     )
 }
 
@@ -788,6 +796,7 @@ fn is_agent_command(command: &str) -> bool {
             | "kimi"
             | "qwen"
             | "openclaw"
+            | "grok"
     )
 }
 
@@ -800,7 +809,7 @@ fn agent_report_supported(agent: &str, report: &str) -> bool {
         "codex" => matches!(report, "daily" | "monthly" | "session"),
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
         "amp" | "droid" | "codebuff" | "hermes" | "pi" | "goose" | "kilo" | "copilot"
-        | "gemini" | "kimi" | "qwen" | "openclaw" => {
+        | "gemini" | "kimi" | "qwen" | "openclaw" | "grok" => {
             matches!(report, "daily" | "monthly" | "session")
         }
         _ => false,
@@ -824,6 +833,7 @@ fn agent_display_name(agent: &str) -> &'static str {
         "kimi" => "Kimi",
         "qwen" => "Qwen",
         "openclaw" => "OpenClaw",
+        "grok" => "Grok Build",
         _ => unreachable!("agent is prevalidated"),
     }
 }

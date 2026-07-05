@@ -30,9 +30,17 @@ Because the local files do not expose the token accounting needed for ccusage re
 :::
 
 ::: details Why is Grok CLI not supported?
-Grok CLI was investigated, but its local SQLite data did not contain usable token accounting. Without token counts, model usage, or recorded costs in the local database, ccusage has nothing reliable to aggregate.
+Grok CLI (the interactive chat CLI) was investigated, but its local SQLite data did not contain usable token accounting. Without token counts, model usage, or recorded costs in the local database, ccusage has nothing reliable to aggregate.
 
 Estimating tokens from message text would ignore provider-side context, hidden prompts, tool-call payloads, cached input, and tokenizer differences, so ccusage does not do that.
+:::
+
+::: details Grok Build (supported via `ccusage grok`)
+Grok Build (xAI's terminal coding agent) stores session signals under `${GROK_HOME:-~/.grok}/sessions/<encoded-cwd>/<session-id>/signals.json` + `summary.json`.
+
+ccusage supports it via the `ccusage grok daily|monthly|session` (and unified) commands. It reports aggregated context token totals (`contextTokensUsed` + `totalTokensBeforeCompaction`) as `totalTokens` with `input*`/`output*`/cache fields and `totalCost` at zero, because the persisted files currently provide cumulative context snapshots rather than per-request billable I/O breakdowns. Model names are prefixed `[grok] ` for clarity in combined reports.
+
+See the [Grok Build guide](/guide/grok/) and the [adapter README](https://github.com/ccusage/ccusage/tree/main/rust/crates/ccusage/src/adapter/grok) for path details, `GROK_HOME` (comma-separated supported), and current limitations.
 :::
 
 ::: details Why is Devin CLI not supported?

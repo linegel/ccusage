@@ -20,6 +20,7 @@ ccusage detects supported data source files from conventional locations by defau
 | `OPENCLAW_DIR`                    | OpenClaw     | `~/.openclaw`                      |
 | `KILO_DATA_DIR`                   | Kilo         | `~/.local/share/kilo`              |
 | `KIMI_DATA_DIR`                   | Kimi         | `~/.kimi`                          |
+| `GROK_HOME`                       | Grok Build   | `~/.grok` (comma-separated OK)     |
 | `QWEN_DATA_DIR`                   | Qwen         | `~/.qwen`                          |
 | `COPILOT_OTEL_FILE_EXPORTER_PATH` | Copilot CLI  | Explicit `.jsonl` file             |
 | `GEMINI_DATA_DIR`                 | Gemini CLI   | `~/.gemini/tmp`                    |
@@ -32,6 +33,7 @@ export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export DROID_SESSIONS_DIR="/path/to/factory/sessions,/archive/factory/sessions"
 export CODEBUFF_DATA_DIR="/path/to/manicode,/archive/manicode"
+export GROK_HOME="/path/to/grok,/archive/grok"
 export HERMES_HOME="/path/to/hermes,/archive/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose,/archive/goose"

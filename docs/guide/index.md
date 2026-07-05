@@ -86,6 +86,7 @@ ccusage reads from local coding CLI data directories:
 | OpenClaw     | `openclaw` | `${OPENCLAW_DIR:-~/.openclaw}`                  |
 | Kilo         | `kilo`     | `${KILO_DATA_DIR:-~/.local/share/kilo}`         |
 | Kimi         | `kimi`     | `${KIMI_DATA_DIR:-~/.kimi}`                     |
+| Grok Build   | `grok`     | `${GROK_HOME:-~/.grok}`                         |
 | Qwen         | `qwen`     | `${QWEN_DATA_DIR:-~/.qwen}`                     |
 | Copilot CLI  | `copilot`  | `~/.copilot/otel/*.jsonl`                       |
 | Gemini CLI   | `gemini`   | `${GEMINI_DATA_DIR:-~/.gemini/tmp}`             |
@@ -93,7 +94,7 @@ ccusage reads from local coding CLI data directories:
 The tool automatically detects available data and aggregates all supported coding CLIs by default.
 Each source-specific environment variable can also contain comma-separated directories, which lets unified reports combine current profiles and archives.
 
-Some coding agents have been investigated but are not supported because their local files do not contain reliable token usage. See [Source Support Q&A](/guide/source-support-qa) for the current notes on Antigravity CLI, Grok CLI, and Devin CLI.
+Some coding agents have been investigated but are not supported because their local files do not contain reliable token usage. See [Source Support Q&A](/guide/source-support-qa) for the current notes on Antigravity CLI, Grok CLI (chat), and Devin CLI. Grok Build (the coding agent) is supported via `ccusage grok` subcommands.
 
 ## Report Shape
 

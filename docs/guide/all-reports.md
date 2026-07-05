@@ -51,9 +51,12 @@ Unified tables include an **Agent** column so you can compare sources in one vie
 | OpenClaw     | `openclaw` | `ccusage openclaw daily`  |
 | Kilo         | `kilo`     | `ccusage kilo daily`      |
 | Kimi         | `kimi`     | `ccusage kimi daily`      |
+| Grok Build   | `grok`     | `ccusage grok daily`      |
 | Qwen         | `qwen`     | `ccusage qwen daily`      |
 | Copilot CLI  | `copilot`  | `ccusage copilot daily`   |
 | Gemini CLI   | `gemini`   | `ccusage gemini daily`    |
+
+See the [Grok Build guide](/guide/grok/) for `GROK_HOME` and current limitations (context totals only, $0 cost).
 
 ## When to Focus a Source
 

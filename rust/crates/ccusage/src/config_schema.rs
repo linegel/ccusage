@@ -48,6 +48,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) kimi: Option<KimiConfig>,
     /// Qwen configuration.
     pub(crate) qwen: Option<QwenConfig>,
+    /// Grok Build configuration.
+    pub(crate) grok: Option<GrokConfig>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -285,6 +287,21 @@ pub(crate) struct QwenConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct QwenCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GrokConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<GrokCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GrokCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -1070,6 +1087,7 @@ mod tests {
         assert!(schema_property(&schema, &["gemini", "defaults", "openClawPath"]).is_none());
         assert!(schema_property(&schema, &["kimi", "defaults", "openClawPath"]).is_none());
         assert!(schema_property(&schema, &["qwen", "defaults", "openClawPath"]).is_none());
+        assert!(schema_property(&schema, &["grok", "defaults", "openClawPath"]).is_none());
     }
 
     #[test]
@@ -1103,8 +1121,8 @@ mod tests {
             "ccusage-config",
             &[
                 "$schema", "amp", "claude", "codebuff", "codex", "commands", "copilot", "defaults",
-                "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "qwen",
-                "droid",
+                "gemini", "goose", "grok", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi",
+                "qwen", "droid",
             ],
         );
         assert!(
@@ -1241,6 +1259,13 @@ mod tests {
                 }
             },
             "qwen": {
+                "commands": {
+                    "session": {
+                        "json": true
+                    }
+                }
+            },
+            "grok": {
                 "commands": {
                     "session": {
                         "json": true

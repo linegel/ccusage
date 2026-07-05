@@ -51,6 +51,7 @@ ccusage amp session
 ccusage pi monthly
 ccusage kilo daily
 ccusage kimi daily
+ccusage grok daily
 ccusage qwen daily
 ```
 
