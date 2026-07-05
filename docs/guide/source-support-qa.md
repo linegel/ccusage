@@ -38,7 +38,7 @@ Estimating tokens from message text would ignore provider-side context, hidden p
 ::: details Grok Build (supported via `ccusage grok`)
 Grok Build (xAI's terminal coding agent) stores session signals under `${GROK_HOME:-~/.grok}/sessions/<encoded-cwd>/<session-id>/signals.json` + `summary.json`.
 
-ccusage supports it via the `ccusage grok daily|monthly|session` (and unified) commands. It reports aggregated context token totals (`contextTokensUsed` + `totalTokensBeforeCompaction`) as `totalTokens` with `input*`/`output*`/cache fields and `totalCost` at zero, because the persisted files currently provide cumulative context snapshots rather than per-request billable I/O breakdowns. Model names are prefixed `[grok] ` for clarity in combined reports.
+ccusage supports it via the `ccusage grok daily|monthly|session` (and unified) commands. For sessions still covered by Grok Build's short-retention `logs/unified.jsonl`, it reports a real per-request input/output/cache breakdown; for older sessions it falls back to the persisted context token totals (`contextTokensUsed` + `totalTokensBeforeCompaction`) as `totalTokens` with zero I/O fields. `totalCost` is zero because Grok Build records no cost and has no public pricing.
 
 See the [Grok Build guide](/guide/grok/) and the [adapter README](https://github.com/ccusage/ccusage/tree/main/rust/crates/ccusage/src/adapter/grok) for path details, `GROK_HOME` (comma-separated supported), and current limitations.
 :::

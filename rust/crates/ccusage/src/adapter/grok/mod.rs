@@ -1,4 +1,5 @@
 mod loader;
+mod logs;
 mod parser;
 mod paths;
 mod report;

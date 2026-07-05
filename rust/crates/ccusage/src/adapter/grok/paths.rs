@@ -36,6 +36,17 @@ pub(super) fn paths() -> Result<Vec<PathBuf>> {
     Ok(paths)
 }
 
+pub(super) fn discover_log_files() -> Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    for grok_home in paths()? {
+        let log_path = grok_home.join("logs").join("unified.jsonl");
+        if log_path.is_file() {
+            files.push(log_path);
+        }
+    }
+    Ok(files)
+}
+
 pub(super) fn discover_signal_files() -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
     for grok_home in paths()? {

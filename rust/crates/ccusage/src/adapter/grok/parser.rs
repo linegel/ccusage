@@ -50,20 +50,70 @@ struct GrokSessionRecord {
 pub(super) fn read_session(
     signals_path: &Path,
     tz: Option<&JiffTimeZone>,
-) -> Result<Option<LoadedEntry>> {
+    log_usage: &super::logs::LogUsageBySession,
+) -> Result<Vec<LoadedEntry>> {
     let content = fs::read_to_string(signals_path)?;
     let Ok(signals) = serde_json::from_str::<GrokSignals>(&content) else {
-        return Ok(None);
+        return Ok(Vec::new());
     };
     let total_tokens = signals
         .context_tokens_used
         .saturating_add(signals.total_tokens_before_compaction);
-    if total_tokens == 0 {
-        return Ok(None);
-    }
     let summary = read_summary(signals_path);
     let record = session_record(signals_path, signals, summary, total_tokens);
-    Ok(Some(record_to_loaded(record, tz)))
+    if let Some(inferences) = log_usage.get(&record.session_id) {
+        let mut entries = inferences
+            .iter()
+            .map(|inference| inference_to_loaded(&record, inference, tz))
+            .collect::<Vec<_>>();
+        let logged_tokens = inferences
+            .iter()
+            .map(|inference| {
+                inference
+                    .prompt_tokens
+                    .saturating_add(inference.completion_tokens)
+            })
+            .sum::<u64>();
+        // unified.jsonl is a short-retention rolling log; when it only covers
+        // the tail of a session, keep the uncovered remainder of the recorded
+        // session totals so the session never reports less than signals.json.
+        let residual_tokens = total_tokens.saturating_sub(logged_tokens);
+        if residual_tokens > 0 {
+            let mut record = record;
+            record.total_tokens = residual_tokens;
+            entries.push(record_to_loaded(record, tz));
+        }
+        return Ok(entries);
+    }
+    if total_tokens == 0 {
+        return Ok(Vec::new());
+    }
+    Ok(vec![record_to_loaded(record, tz)])
+}
+
+fn inference_to_loaded(
+    record: &GrokSessionRecord,
+    inference: &super::logs::LogInference,
+    tz: Option<&JiffTimeZone>,
+) -> LoadedEntry {
+    let usage = TokenUsageRaw {
+        input_tokens: inference
+            .prompt_tokens
+            .saturating_sub(inference.cached_prompt_tokens),
+        output_tokens: inference.completion_tokens,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: inference.cached_prompt_tokens,
+        speed: None,
+        cache_creation: None,
+    };
+    loaded_entry(
+        record,
+        usage,
+        0,
+        inference.timestamp,
+        inference.timestamp_text.clone(),
+        tz,
+    )
 }
 
 fn read_summary(signals_path: &Path) -> GrokSummary {
@@ -119,7 +169,6 @@ fn session_record(
 }
 
 fn record_to_loaded(record: GrokSessionRecord, tz: Option<&JiffTimeZone>) -> LoadedEntry {
-    let model_label = format!("[grok] {}", record.model);
     let usage = TokenUsageRaw {
         input_tokens: 0,
         output_tokens: 0,
@@ -128,13 +177,34 @@ fn record_to_loaded(record: GrokSessionRecord, tz: Option<&JiffTimeZone>) -> Loa
         speed: None,
         cache_creation: None,
     };
+    let timestamp = record.timestamp;
+    let timestamp_text = record.timestamp_text.clone();
+    let extra_total_tokens = record.total_tokens;
+    loaded_entry(
+        &record,
+        usage,
+        extra_total_tokens,
+        timestamp,
+        timestamp_text,
+        tz,
+    )
+}
+
+fn loaded_entry(
+    record: &GrokSessionRecord,
+    usage: TokenUsageRaw,
+    extra_total_tokens: u64,
+    timestamp: TimestampMs,
+    timestamp_text: String,
+    tz: Option<&JiffTimeZone>,
+) -> LoadedEntry {
     let data = UsageEntry {
         session_id: Some(record.session_id.clone()),
-        timestamp: record.timestamp_text,
+        timestamp: timestamp_text,
         version: None,
         message: UsageMessage {
             usage,
-            model: Some(model_label.clone()),
+            model: Some(record.model.clone()),
             id: None,
         },
         cost_usd: None,
@@ -144,16 +214,16 @@ fn record_to_loaded(record: GrokSessionRecord, tz: Option<&JiffTimeZone>) -> Loa
     };
     LoadedEntry {
         data,
-        timestamp: record.timestamp,
-        date: format_date_tz(record.timestamp, tz),
+        timestamp,
+        date: format_date_tz(timestamp, tz),
         project: Arc::from("grok"),
-        session_id: Arc::from(record.session_id),
-        project_path: Arc::from(record.project_path),
+        session_id: Arc::from(record.session_id.as_str()),
+        project_path: Arc::from(record.project_path.as_str()),
         cost: 0.0,
-        extra_total_tokens: record.total_tokens,
+        extra_total_tokens,
         credits: None,
         message_count: None,
-        model: Some(model_label),
+        model: Some(record.model.clone()),
         usage_limit_reset_time: None,
         missing_pricing_model: None,
     }
@@ -260,16 +330,106 @@ mod tests {
             }"#,
         });
 
-        let entry = read_session(
+        let entries = read_session(
             &fixture.path("sessions/%2Fworkspace%2Fapi/session-a/signals.json"),
             Some(&TimeZone::UTC),
+            &super::super::logs::LogUsageBySession::new(),
         )
-        .unwrap()
         .unwrap();
 
+        assert_eq!(entries.len(), 1);
+        let entry = &entries[0];
         assert_eq!(entry.date, "2026-05-22");
         assert_eq!(entry.extra_total_tokens, 100);
-        assert_eq!(entry.model.as_deref(), Some("[grok] grok-build"));
+        assert_eq!(entry.model.as_deref(), Some("grok-build"));
         assert_eq!(entry.project.as_ref(), "grok");
+    }
+
+    #[test]
+    fn splits_session_into_per_inference_entries_when_logs_cover_it() {
+        let fixture = fs_fixture!({
+            "sessions/%2Fworkspace%2Fapi/session-a/signals.json": r#"{
+                "contextTokensUsed": 100,
+                "primaryModelId": "grok-build-0.1"
+            }"#,
+            "sessions/%2Fworkspace%2Fapi/session-a/summary.json": r#"{
+                "last_active_at": "2026-07-03T06:00:00.000Z",
+                "info": { "id": "session-a", "cwd": "/workspace/api" }
+            }"#,
+        });
+        let mut log_usage = super::super::logs::LogUsageBySession::new();
+        log_usage.insert(
+            "session-a".to_string(),
+            vec![
+                super::super::logs::LogInference {
+                    timestamp: parse_ts_timestamp("2026-07-03T05:00:07.907Z").unwrap(),
+                    timestamp_text: "2026-07-03T05:00:07.907Z".to_string(),
+                    prompt_tokens: 70634,
+                    cached_prompt_tokens: 69632,
+                    completion_tokens: 2699,
+                },
+                super::super::logs::LogInference {
+                    timestamp: parse_ts_timestamp("2026-07-04T05:00:10.616Z").unwrap(),
+                    timestamp_text: "2026-07-04T05:00:10.616Z".to_string(),
+                    prompt_tokens: 100,
+                    cached_prompt_tokens: 40,
+                    completion_tokens: 10,
+                },
+            ],
+        );
+
+        let entries = read_session(
+            &fixture.path("sessions/%2Fworkspace%2Fapi/session-a/signals.json"),
+            Some(&TimeZone::UTC),
+            &log_usage,
+        )
+        .unwrap();
+
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].date, "2026-07-03");
+        assert_eq!(entries[0].data.message.usage.input_tokens, 1002);
+        assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 69632);
+        assert_eq!(entries[0].data.message.usage.output_tokens, 2699);
+        assert_eq!(entries[0].extra_total_tokens, 0);
+        assert_eq!(entries[0].model.as_deref(), Some("grok-build-0.1"));
+        assert_eq!(entries[1].date, "2026-07-04");
+        assert_eq!(entries[1].data.message.usage.input_tokens, 60);
+    }
+
+    #[test]
+    fn keeps_residual_session_totals_when_logs_only_cover_the_tail() {
+        let fixture = fs_fixture!({
+            "sessions/%2Fworkspace%2Fapi/session-a/signals.json": r#"{
+                "contextTokensUsed": 1000000,
+                "primaryModelId": "grok-build-0.1"
+            }"#,
+            "sessions/%2Fworkspace%2Fapi/session-a/summary.json": r#"{
+                "last_active_at": "2026-07-05T06:00:00.000Z",
+                "info": { "id": "session-a", "cwd": "/workspace/api" }
+            }"#,
+        });
+        let mut log_usage = super::super::logs::LogUsageBySession::new();
+        log_usage.insert(
+            "session-a".to_string(),
+            vec![super::super::logs::LogInference {
+                timestamp: parse_ts_timestamp("2026-07-05T05:00:00.000Z").unwrap(),
+                timestamp_text: "2026-07-05T05:00:00.000Z".to_string(),
+                prompt_tokens: 70000,
+                cached_prompt_tokens: 60000,
+                completion_tokens: 3000,
+            }],
+        );
+
+        let entries = read_session(
+            &fixture.path("sessions/%2Fworkspace%2Fapi/session-a/signals.json"),
+            Some(&TimeZone::UTC),
+            &log_usage,
+        )
+        .unwrap();
+
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].data.message.usage.input_tokens, 10000);
+        assert_eq!(entries[1].extra_total_tokens, 1000000 - 73000);
+        assert_eq!(entries[1].data.message.usage.input_tokens, 0);
     }
 }
