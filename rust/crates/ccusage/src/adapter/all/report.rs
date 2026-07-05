@@ -320,6 +320,16 @@ fn table_total_tokens(row: &AllRow) -> u64 {
         .saturating_add(row.output_tokens)
         .saturating_add(row.cache_creation_tokens)
         .saturating_add(row.cache_read_tokens)
+        .max(row.total_tokens)
+}
+
+pub(super) fn model_breakdown_total_tokens(breakdown: &ModelBreakdown) -> u64 {
+    breakdown
+        .input_tokens
+        .saturating_add(breakdown.output_tokens)
+        .saturating_add(breakdown.cache_creation_tokens)
+        .saturating_add(breakdown.cache_read_tokens)
+        .saturating_add(breakdown.extra_total_tokens)
 }
 
 fn push_model_breakdown_rows(
@@ -329,8 +339,7 @@ fn push_model_breakdown_rows(
     shared: &SharedArgs,
 ) {
     for b in breakdowns {
-        let total =
-            b.input_tokens + b.output_tokens + b.cache_creation_tokens + b.cache_read_tokens;
+        let total = model_breakdown_total_tokens(b);
         let model = color(
             shared,
             format!("- {}", short_model_name(&b.model_name)),

@@ -468,6 +468,46 @@ fn displays_total_tokens_with_cache_tokens_like_typescript_table() {
 }
 
 #[test]
+fn displays_extra_total_tokens_for_context_total_only_agents() {
+    let row = AllRow {
+        period: "2026-07-02".to_string(),
+        agent: "grok",
+        models_used: vec!["[grok] grok-build-0.1".to_string()],
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 0,
+        total_tokens: 3_498_831,
+        total_cost: 0.0,
+        metadata: None,
+        metadata_agents: Some(vec!["grok"]),
+        agent_breakdowns: None,
+        model_breakdowns: Vec::new(),
+    };
+
+    let cells = all_table_row(&row, false, true, false);
+
+    assert_eq!(cells[1], "- Grok Build");
+    assert_eq!(cells[7], "3,498,831");
+}
+
+#[test]
+fn model_breakdown_total_tokens_include_extra_total_tokens() {
+    let breakdown = ModelBreakdown {
+        model_name: "[grok] grok-build-0.1".to_string(),
+        input_tokens: 1,
+        output_tokens: 2,
+        cache_creation_tokens: 3,
+        cache_read_tokens: 4,
+        extra_total_tokens: 40,
+        cost: 0.0,
+        missing_pricing: false,
+    };
+
+    assert_eq!(model_breakdown_total_tokens(&breakdown), 50);
+}
+
+#[test]
 fn report_title_uses_detected_agents_even_when_filtered_rows_are_sparse() {
     let rows = vec![AllRow {
         period: "2026-01-02".to_string(),
